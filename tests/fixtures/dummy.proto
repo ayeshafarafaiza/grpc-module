@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package dummy;
+
+// First service for testing basic unary and error calls
+service DummyService {
+  rpc sayHello (HelloRequest) returns (HelloResponse) {}
+  rpc causeError (Empty) returns (Empty) {}
+}
+
+// Second service for testing multi-service registration on one port
+service DummyServiceTwo {
+  rpc ping (Empty) returns (PingResponse) {}
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloResponse {
+  string message = 1;
+}
+
+message PingResponse {
+  string status = 1;
+}
+
+// Reused across multiple RPCs
+message Empty {}

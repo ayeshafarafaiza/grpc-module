@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package order;
+
+service OrderService {
+  rpc createNewOrder (CreateOrderRequest) returns (OrderResponse) {}
+  rpc getAllOrder (Empty) returns (OrderList) {}
+  rpc getOrder (OrderIdRequest) returns (OrderDetails) {}
+  rpc searchOrder (SearchOrderRequest) returns (OrderList) {}
+  rpc deleteOrder (OrderIdRequest) returns (DeleteResponse) {}
+}
+
+message Empty {}
+
+message OrderItemRequest {
+  string productId = 1;
+  int32 quantity = 2;
+}
+
+message CreateOrderRequest {
+  repeated OrderItemRequest items = 1;
+}
+
+message OrderItemDetails {
+  string productId = 1;
+  int32 quantity = 2;
+  int32 price = 3;
+  int32 subtotal = 4;
+}
+
+message OrderDetails {
+  string id = 1;
+  repeated OrderItemDetails items = 2;
+  int32 total = 3;
+  string createdAt = 4;
+}
+
+message OrderResponse {
+  string status = 1;
+  int32 total = 2;
+  string orderId = 3;
+}
+
+message OrderList {
+  repeated OrderDetails orderList = 1;
+  int32 grandTotal = 2;
+  int32 totalQuantity = 3;
+}
+
+message OrderIdRequest {
+  string id = 1;
+}
+
+message SearchOrderRequest {
+  string keyword = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
