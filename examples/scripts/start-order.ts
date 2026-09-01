@@ -54,17 +54,16 @@ const run = async () => {
     : null;
 
   intervals.push(
-    setInterval(() => {
+    setInterval(async () => {
       console.log('\n[ORDER] Calling service_product (getAllProduct)');
       if (productClient) {
-        productClient.getAllProduct({}, (err: any, res: any) => {
-          if (err) {
-            console.error('[ORDER] Error calling Product Service:', err.details || err.message);
-          } else {
-            console.log('[ORDER] Received response from Product Service');
-            console.log(`[ORDER] Processing response... Total products: ${res.products ? res.products.length : 0}`);
-          }
-        });
+        try {
+          const res = await productClient.getAllProduct({});
+          console.log('[ORDER] Received response from Product Service');
+          console.log(`[ORDER] Processing response... Total products: ${res.products ? res.products.length : 0}`);
+        } catch (err: any) {
+          console.error('[ORDER] Error calling Product Service:', err.details || err.message);
+        }
       }
     }, 10000)
   );
@@ -79,20 +78,18 @@ const run = async () => {
     : null;
 
   intervals.push(
-    setInterval(() => {
+    setInterval(async () => {
       Logger.info('Internal Check: Sales Dashboard');
       if (orderClient) {
-        orderClient.getAllOrder({}, (err: any, res: any) => {
-          if (err) {
-            Logger.error('RPC Error (Order Dashboard):', err.details || err.message);
-          } else {
-            Logger.info(`--- Laporan Penjualan ---`);
-            Logger.info(`Jumlah Pesanan Masuk : ${res.orderList ? res.orderList.length : 0}`);
-            Logger.info(`Total Barang Terjual : ${res.totalQuantity || 0}`);
-            Logger.info(`Total Omset (Pendp.): ${res.grandTotal || 0}`);
-            Logger.info(`-------------------------\n`);
-          }
-        });
+        try {
+          const res = await orderClient.getAllOrder({});
+          Logger.info(`Laporan Penjualan`);
+          Logger.info(`Jumlah Pesanan Masuk : ${res.orderList ? res.orderList.length : 0}`);
+          Logger.info(`Total Barang Terjual : ${res.totalQuantity || 0}`);
+          Logger.info(`Total Omset (Pendp.): ${res.grandTotal || 0}`);
+        } catch (err: any) {
+          Logger.error('RPC Error (Order Dashboard):', err.details || err.message);
+        }
       }
     }, 15000)
   );

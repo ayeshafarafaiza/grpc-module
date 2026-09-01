@@ -1,25 +1,14 @@
-import { Logger } from '../../../src/index.js';
 import * as grpc from '@grpc/grpc-js';
 import { OrderRepository } from '../services/order.repository.js';
+import { GrpcError } from '../../../src/index.js';
 
-export const getOrder = async (call: grpc.ServerUnaryCall<{ id: string }, any>, callback: grpc.sendUnaryData<any>) => {
-  try {
-    const { id } = call.request;
-    const order = await OrderRepository.getOrderById(id);
+export const getOrder = async (call: grpc.ServerUnaryCall<{ id: string }, any>) => {
+  const { id } = call.request;
+  const order = await OrderRepository.getOrderById(id);
 
-    if (!order) {
-      return callback({
-        code: grpc.status.NOT_FOUND,
-        message: 'Order Not Found'
-      });
-    }
-
-    callback(null, order);
-  } catch (err) {
-    Logger.error('Action Error', err);
-    callback({
-      code: grpc.status.INTERNAL,
-      message: 'Internal Server Error'
-    });
+  if (!order) {
+    throw new GrpcError(grpc.status.NOT_FOUND, 'Order Not Found');
   }
+
+  return order;
 };

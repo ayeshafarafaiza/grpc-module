@@ -59,39 +59,20 @@ describe('gRPC Core Module Tests', () => {
     }
   });
 
-  test('should support multiple services on a single port (One-Port Strategy)', (done) => {
+  test('should support multiple services on a single port (One-Port Strategy)', async () => {
     // Call service 1
-    client1.sayHello({ name: 'User' }, (err: any, response: any) => {
-      try {
-        expect(err).toBeNull();
-        expect(response.message).toBe('Hello User');
+    const response = await client1.sayHello({ name: 'User' });
+    expect(response.message).toBe('Hello User');
 
-        // Call service 2 immediately after
-        client2.ping({}, (err2: any, response2: any) => {
-          try {
-            expect(err2).toBeNull();
-            expect(response2.status).toBe('PONG');
-            done();
-          } catch (error2) {
-            done(error2);
-          }
-        });
-      } catch (error) {
-        done(error);
-      }
-    });
+    // Call service 2 immediately after
+    const response2 = await client2.ping({});
+    expect(response2.status).toBe('PONG');
   });
 
-  test('should handle standard gRPC errors seamlessly', (done) => {
-    client1.causeError({}, (err: any, _response: any) => {
-      try {
-        expect(err).toBeDefined();
-        expect(err.code).toBe(grpc.status.INVALID_ARGUMENT);
-        expect(err.details).toBe('This is a simulated error');
-        done();
-      } catch (error) {
-        done(error);
-      }
+  test('should handle standard gRPC errors seamlessly', async () => {
+    await expect(client1.causeError({})).rejects.toMatchObject({
+      code: grpc.status.INVALID_ARGUMENT,
+      details: 'This is a simulated error'
     });
   });
 

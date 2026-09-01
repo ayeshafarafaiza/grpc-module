@@ -1,10 +1,10 @@
 import * as grpc from '@grpc/grpc-js';
 import { ReflectionService } from '@grpc/reflection';
 import * as protoLoader from '@grpc/proto-loader';
-import { Logger } from '../utils/logger.js';
-import { GrpcError } from '../errors/grpc-error.js';
+import { Logger } from '../utils/logger.util.js';
+import { GrpcError } from './grpc-error.provider.js';
 
-import { isDevelopment } from '../utils/env.js';
+import { isDevelopment } from '../utils/env.util.js';
 
 export class GenericGrpcServer {
   private server: grpc.Server;
@@ -42,7 +42,9 @@ export class GenericGrpcServer {
         try {
           if (typeof callback === 'function') {
             // Unary call wrapper
+            let callbackCalled = false;
             const wrappedCallback = (error: any, response: any) => {
+              callbackCalled = true;
               if (error) {
                 Logger.error(`RPC ${methodName} failed`, error);
               } else {
@@ -51,20 +53,26 @@ export class GenericGrpcServer {
               callback(error, response);
             };
 
-            await (handler as any)(call, wrappedCallback);
+            const result = await (handler as any)(call, wrappedCallback);
+
+            // If the handler returned a value and didn't manually call the callback, auto-resolve it
+            if (result !== undefined && !callbackCalled) {
+              Logger.info(`RPC ${methodName} succeeded`);
+              callback(null, result);
+            }
           } else {
             // Streaming call wrapper
             await (handler as any)(call);
           }
         } catch (err: any) {
-          Logger.error(`Unhandled exception in RPC ${methodName}`, err);
-
           if (err instanceof GrpcError) {
+            Logger.warn(`RPC ${methodName} returned GrpcError: ${err.message}`);
             callback({
               code: err.code,
               message: err.message
             });
           } else {
+            Logger.error(`Unhandled exception in RPC ${methodName}`, err);
             callback({
               code: grpc.status.INTERNAL,
               message: 'Internal server error'

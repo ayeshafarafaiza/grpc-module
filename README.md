@@ -158,17 +158,12 @@ async function bootstrapServer() {
 
   // 3. Register Implementation (Business Logic adapter)
   server.registerService((protoPackage.product as any).ProductService.service, {
-    getProduct: async (call: any, callback: any) => {
-      try {
-        const productId = call.request.id;
-        if (!productId) throw GrpcError.invalidArgument('Missing ID');
-        
-        // Fetch from Database (Application Layer)
-        const product = { id: productId, name: 'Laptop', price: 1500 }; 
-        callback(null, product);
-      } catch (err: any) {
-        callback(err); // Handled safely by grpc-module interceptors
-      }
+    getProduct: async (call: any) => {
+      const productId = call.request.id;
+      if (!productId) throw GrpcError.invalidArgument('Missing ID');
+      
+      // Fetch from Database (Application Layer)
+      return { id: productId, name: 'Laptop', price: 1500 }; 
     }
   });
 
@@ -215,14 +210,13 @@ const productClient = createGrpcClient<any>(
 );
 
 // 3. Use Client
-productClient.getProduct({ id: 'P001' }, (err: any, response: any) => {
-  if (err) {
-    if (err.code === 14) console.error('Service UNAVAILABLE');
-    else console.error('gRPC Error:', err.message);
-  } else {
-    console.log('Received Product:', response);
-  }
-});
+try {
+  const response = await productClient.getProduct({ id: 'P001' });
+  console.log('Received Product:', response);
+} catch (err: any) {
+  if (err.code === 14) console.error('Service UNAVAILABLE');
+  else console.error('gRPC Error:', err.message);
+}
 ```
 
 ### Polyglot Example: Golang Server ↔ Node.js Client
@@ -248,9 +242,15 @@ const { protoPackage } = loadProtos([path.resolve(__dirname, 'product.proto')]);
 // Connect directly to the Golang Server via HTTP/2
 const client = createGrpcClient<any>((protoPackage.product as any).ProductService, '192.168.1.50', 50051);
 
-client.getProduct({ id: 'P123' }, (err: any, response: any) => {
-  console.log('Received from Golang:', response.name); // Outputs: "Laptop"
-});
+async function callGoServer() {
+  try {
+    const response = await client.getProduct({ id: 'P123' });
+    console.log('Received from Golang:', response.name); // Outputs: "Laptop"
+  } catch (err) {
+    console.error(err);
+  }
+}
+callGoServer();
 ```
 
 ---
@@ -299,11 +299,11 @@ export class OrderProcessor {
 `grpc-module` provides standard gRPC status mappings. Consumer applications should map these back to domain errors.
 
 ```typescript
-try {
-  // Provider side throwing an error
+// Inside your async action handler
+if (!product) {
+  // Just throw the GrpcError directly. The module's interceptor will catch it
+  // and safely send it over the wire with status code 5 (NOT_FOUND).
   throw GrpcError.notFound('Product does not exist');
-} catch (err: any) {
-  callback(err); // Sent over wire with status code 5 (NOT_FOUND)
 }
 ```
 
@@ -344,14 +344,13 @@ gRPC connections are persistent (HTTP/2). You do not need to poll just to keep t
 
 ```typescript
 // Executed by the Consumer Service
-setInterval(() => {
-  productClient.Ping({}, (err: any) => {
-    if (err) {
-      console.warn('Product Service is DOWN (UNAVAILABLE)');
-    } else {
-      console.log('Product Service is HEALTHY');
-    }
-  });
+setInterval(async () => {
+  try {
+    await productClient.Ping({});
+    console.log('Product Service is HEALTHY');
+  } catch (err: any) {
+    console.warn('Product Service is DOWN (UNAVAILABLE)');
+  }
 }, 10000); // Check every 10 seconds
 ```
 

@@ -1,11 +1,8 @@
-import { Logger } from '../utils/logger.js';
+import { Logger } from '../utils/logger.util.js';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 
-export interface LoadedProto {
-  packageDefinition: protoLoader.PackageDefinition;
-  protoPackage: grpc.GrpcObject;
-}
+import { LoadedProto } from '../types/grpc.type.js';
 
 /**
  * Loads an array of proto files dynamically.
