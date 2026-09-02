@@ -521,3 +521,61 @@ The strict public API contract exposed by `src/index.ts`:
 
 ---
 
+
+---
+
+## 21. Pub/Sub to gRPC Compatibility
+
+Modul ini menyediakan *Compatibility Layer* agar aplikasi Anda yang sebelumnya menggunakan Pub/Sub (seperti Kafka, RabbitMQ, dll) dapat menggunakan gRPC tanpa perlu merombak ulang *business logic*. Anda dapat menjalankan aplikasi dengan Pub/Sub maupun gRPC secara berdampingan atau saat proses migrasi berlangsung.
+
+Gunakan interface `IMessagePublisher` di level aplikasi, dan tentukan adapternya (gRPC atau Pub/Sub) di level inisialisasi infrastruktur (*bootstrap*).
+
+### Contoh Implementasi
+
+**1. Application Layer (Business Logic)**
+Kode ini 100% tidak peduli apakah ia sedang menggunakan Pub/Sub atau gRPC.
+
+```typescript
+import { IMessagePublisher } from 'grpc-module';
+
+export class OrderService {
+  constructor(private transport: IMessagePublisher) {}
+
+  async processOrder(orderData: any) {
+    // Proses order logic...
+    
+    // Publish payload secara transparan
+    await this.transport.publish('order.created', orderData);
+  }
+}
+```
+
+**2. Infrastructure Layer (Bootstrap)**
+Pilih _transport_ berdasarkan konfigurasi *environment* saat aplikasi dinyalakan.
+
+```typescript
+import { GrpcTransportAdapter, createGrpcClient, IMessagePublisher } from 'grpc-module';
+
+async function bootstrap() {
+  let transport: IMessagePublisher;
+
+  if (process.env.TRANSPORT === 'grpc') {
+    // Setup gRPC Adapter
+    const orderClient = createGrpcClient(OrderServiceDef, '127.0.0.1', 50051);
+    
+    // Map "topic" ke fungsi client gRPC
+    transport = new GrpcTransportAdapter({
+      routes: {
+        'order.created': { client: orderClient, methodName: 'emitOrderCreated' }
+      }
+    });
+  } else {
+    // Setup Pub/Sub Adapter (contoh: Kafka/RabbitMQ)
+    transport = new ExistingPubSubAdapter(); 
+  }
+
+  // Inject ke Business Logic
+  const service = new OrderService(transport);
+  await service.processOrder({ id: 'ORD-123', item: 'Laptop' });
+}
+```
